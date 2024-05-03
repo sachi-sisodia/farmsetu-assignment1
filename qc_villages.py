@@ -46,6 +46,7 @@ df_fs["full_village_name"] = df_fs["r_001_state_name"].str.cat(
 df_fs["full_district_name"] = df_fs["full_district_name"].str.lower()
 df_fs["full_taluka_name"] = df_fs["full_taluka_name"].str.lower()
 df_fs["full_village_name"] = df_fs["full_village_name"].str.lower()
+df_fs["full_village_name_original"] = df_fs["full_village_name"]
 
 fs_districts = df_fs["full_district_name"].unique().tolist()
 fs_talukas = df_fs["full_taluka_name"].unique().tolist()
@@ -80,19 +81,15 @@ taluka_names = sorted(taluka_names)
 village_names = sorted(village_names)
 
 # dictionary of lists
-fs_district_dict = {"fs_district": fs_districts}
-fs_taluka_dict = {"fs_talukas": fs_talukas}
+# fs_district_dict = {"fs_district": fs_districts}
+# fs_taluka_dict = {"fs_talukas": fs_talukas}
 dg_district_dict = {"dg_district": dg_districts}
 dg_taluka_dict = {"dg_talukas": dg_talukas}
 
-fs_district_df = pd.DataFrame(fs_district_dict)
-fs_taluka_df = pd.DataFrame(fs_taluka_dict)
+# fs_district_df = pd.DataFrame(fs_district_dict)
+# fs_taluka_df = pd.DataFrame(fs_taluka_dict)
 dg_district_df = pd.DataFrame(dg_district_dict)
 dg_taluka_df = pd.DataFrame(dg_taluka_dict)
-
-fs_taluka_df["State ID"] = df_fs["r_61_state_id"]
-fs_taluka_df["District ID"] = df_fs["r_62_dis_id"]
-fs_taluka_df["Taluka ID"] = df_fs["r_63_tal_id"]
 
 #splits up the whole name for diff district table
 diff_district_df = pd.DataFrame(district_names, columns=['Total'])
@@ -121,6 +118,8 @@ split_values = fs_district_df['Total1'].str.split(pat=":", expand=True)
 fs_district_df['State Name'] = split_values[0]
 fs_district_df['District Name'] = split_values[1]
 fs_district_df = fs_district_df.drop(['Total1'],axis=1)
+# fs_district_df['State ID'] = df_fs["r_61_state_id"]
+# fs_district_df["District ID"] = df_fs["r_62_dis_id"]
 
 #splits up the whole name for farmsetu taluka table
 fs_taluka_df = pd.DataFrame(fs_talukas, columns=['Total1'])
@@ -129,29 +128,49 @@ fs_taluka_df['State Name'] = split_values[0]
 fs_taluka_df['District Name'] = split_values[1]
 fs_taluka_df['Taluka Name'] = split_values[2]
 fs_taluka_df = fs_taluka_df.drop(['Total1'],axis=1)
+# fs_taluka_df["State ID"] = df_fs["r_61_state_id"]
+# fs_taluka_df["District ID"] = df_fs["r_62_dis_id"]
+# fs_taluka_df["Taluka ID"] = df_fs["r_63_tal_id"]
+
+#splits up the whole name for farmsetu villages table(not unique but converted to lowercase so as to maintain the id correspondence
+split_values = df_fs["full_village_name_original"].str.split(pat=":", expand=True)
+fs_village_df = pd.DataFrame()
+fs_village_df['State Name'] = split_values[0]
+fs_village_df['District Name'] = split_values[1]
+fs_village_df['Taluka Name'] = split_values[2]
+fs_village_df['Village Name'] = split_values[3]
+#fs_taluka_df = fs_taluka_df.drop(['full_village_name_original'],axis=1)
+fs_village_df["State ID"] = df_fs["r_61_state_id"]
+fs_village_df["District ID"] = df_fs["r_62_dis_id"]
+fs_village_df["Taluka ID"] = df_fs["r_63_tal_id"]
+# fs_taluka_df["Village ID"] = df_fs["r_64_vill_id"]
 
 #do we really need to compare fs district and talukas coz they are the same talukas is just a bigger set and wroks for all soo?
 
 #merges dfs
 
-
-fs_district_df['State ID'] = df_fs["r_61_state_id"]
-fs_district_df["District ID"] = df_fs["r_62_dis_id"]
+#works for uptil district level
 diff_district_df.info()
 fs_district_df.info()
-diff_district_df = pd.merge(diff_district_df,  fs_district_df, left_on="State",right_on="State Name", how="left")
+# df_fs['r_001_state_name'] = df_fs['r_001_state_name'].lower()
+diff_district_df = pd.merge(diff_district_df,  fs_village_df, left_on="State",right_on='State Name', how="left")
 diff_district_df = diff_district_df.drop_duplicates(subset=['District'],keep='first')
-diff_district_df = diff_district_df.drop(['State Name', 'District Name','Total', 'District ID'], axis=1)
+diff_district_df = diff_district_df.drop(['Total', 'State Name', 'District Name','Taluka Name','Village Name', 'District ID', 'Taluka ID'], axis=1)
+
+# works for uptil taluka level
+diff_taluka_df = pd.merge(diff_taluka_df, fs_village_df, left_on="District",right_on='District Name', how="left")
+diff_taluka_df = diff_taluka_df.drop_duplicates(subset=['Taluka'],keep='first')
+diff_taluka_df = diff_taluka_df.drop(['Total', 'State Name', 'District Name','Taluka Name','Village Name', 'Taluka ID'], axis=1)
+
+# works for uptil village level
+diff_village_df = pd.merge(diff_village_df, fs_village_df, left_on="Taluka",right_on='Taluka Name', how="left")
+diff_village_df = diff_village_df.drop_duplicates(subset=['Village'],keep='first')
+diff_village_df = diff_village_df.drop(['Total', 'State Name', 'District Name','Taluka Name','Village Name'], axis=1)
+
 # fs_district_df= fs_district_df.assign(State=lambda x: fs_district_df['Total'].str.split(pat=":")[0])
-
-
-
-#
-
 # diff_district_df = pd.DataFrame(diff_district_dict)
 # diff_taluka_df = pd.DataFrame(diff_taluka_dict)
 # diff_village_df = pd.DataFrame(diff_village_dict)
-#
 # fs_district_df = pd.DataFrame({"fs_state": fs_district_df.str.split(pat=":")[0], "fs_district": fs_district_df.str.split(pat=":")[1]})
 # fs_taluka_df = pd.DataFrame({"fs_state": fs_taluka_df.str.split(pat=":")[0], "fs_district": fs_taluka_df.str.split(pat=":")[1],"fs_talukas": fs_taluka_df.str.split(pat=":")[2]})
 # dg_district_df = pd.DataFrame({"dg_state": dg_district_df.str.split(pat=":")[0], "dg_district": dg_district_df.str.split(pat=":")[1]})
@@ -165,11 +184,12 @@ with pd.ExcelWriter(f"QC_{filename}", engine="xlsxwriter") as writer:
     df_gov.to_excel(writer, sheet_name="GOV", index=False)
     fs_district_df.to_excel(writer, sheet_name="FS-DIS", index=False)
     fs_taluka_df.to_excel(writer, sheet_name="FS-TAL", index=False)
+    fs_village_df.to_excel(writer, sheet_name="FS-VIL", index=False)
     dg_district_df.to_excel(writer, sheet_name="GOV-DIS", index=False)
     dg_taluka_df.to_excel(writer, sheet_name="GOV-TAL", index=False)
     diff_district_df.to_excel(writer, sheet_name="Diff-GOV-DIS", index=False)
     # merged_df.to_excel(writer, sheet_name="Merged_-DIS", index=False)
-    # diff_taluka_df.to_excel(writer, sheet_name="Diff-GOV-TAL", index=False)
-    # diff_village_df.to_excel(writer, sheet_name="Diff-GOV-VIL", index=False)
+    diff_taluka_df.to_excel(writer, sheet_name="Diff-GOV-TAL", index=False)
+    diff_village_df.to_excel(writer, sheet_name="Diff-GOV-VIL", index=False)
 
 print("Completed")
